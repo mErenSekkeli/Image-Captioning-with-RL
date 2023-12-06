@@ -1,76 +1,52 @@
-from load_data import image_load, load_json_data, load_image_filenames
+from load_data import image_load, load_json_data, load_images
 import torch
 import torchvision.transforms as transforms
-from torchvision.models import resnet101
-import cv2
+import torchvision.models as models
+from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 import os
-import tarfile
-from PIL import Image
 import argparse
 from tqdm import tqdm
-import shutil
 
 parser = argparse.ArgumentParser()
 
 
+def extract_features(image_array, batch_size):
+    # Load the pre-trained ResNet101 model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = models.resnet101(pretrained=True).to(device)
+    model.eval()
 
-def load_model():
-    # ResNet101 modelini yükle
-    model = resnet101(pretrained=True)
-    model.eval()  # Modeli değerlendirme moduna al
+    # Define transformations
+    preprocess = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
-    if torch.cuda.is_available():
-        model = model.cuda()
+    # Apply transformations and create a DataLoader
+    tensor_images = torch.stack([preprocess(image) for image in image_array])
+    dataset = TensorDataset(tensor_images)
+    dataloader = DataLoader(dataset, batch_size=batch_size)
 
-    return model
+    # Extract features
+    features = []
+    with torch.no_grad():
+        for batch in tqdm(dataloader, total=len(dataloader), desc="Extracting features"):
+            inputs = batch[0].to(device)
+            outputs = model(inputs)
+            features.append(outputs.cpu().numpy())
 
-def extract_features(model, images, transform):
-    all_features = []
-    
-    im1_parts, im2_parts = images
-    total_parts = len(im1_parts)
+    return np.concatenate(features, axis=0)
 
-    for i in range(total_parts):
-        im1_part = im1_parts[i]
-        im2_part = im2_parts[i]
-
-        im1_part = transform(Image.fromarray(im1_part))
-        im2_part = transform(Image.fromarray(im2_part))
-
-        if torch.cuda.is_available():
-            im1_part = im1_part.cuda()
-            im2_part = im2_part.cuda()
-
-        im1_part = im1_part.unsqueeze(0)
-        im2_part = im2_part.unsqueeze(0)
-
-        with torch.no_grad():
-            im1_features = model(im1_part)
-            im2_features = model(im2_part)
-
-        im1_features = im1_features.squeeze(0).cpu().numpy()
-        im2_features = im2_features.squeeze(0).cpu().numpy()
-
-        features = np.concatenate((im1_features, im2_features), axis=0)
-        all_features.append(features)
-
-    return all_features
-
-def save_features(features, file_name):
-    # Özellikleri kaydet
+def save_features(image_features, name):
+    # save features
     if not os.path.exists("data/features"):
-        os.makedirs("data/features")
-    torch.save(features, os.path.join("data/features", f"{file_name}.pt"))
+        os.makedirs("data/features")    
+    np.save(f"data/features/{name}.npy", image_features)
 
-def delete_features():
-    # Özellik klösörünü sil
-    if os.path.exists("data/features"):
-        shutil.rmtree("data/features")
-
-def create_tarfile(output_filename, source_dir):
-    with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir))
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Feature extraction script")
@@ -81,31 +57,21 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    if os.path.exists("data/features.tar.gz"):
+    if os.path.exists("data/features/im1.npy") and os.path.exists("data/features/im2.npy"):
         raise Exception("Features already extracted")
     args = parse_args()
     print(args)
-    model = load_model()
 
-    file_names = load_image_filenames(args.json_file, args.start_index, args.end_index)
-
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
-
-    for name in tqdm(file_names, desc="Processing images", leave=False):
-        images = image_load(name)
-        if images:
-            features = extract_features(model, images, transform)
-            save_features(features, name)
-        else:
-            print(f"Belirtilen dosya bulunamadı: {name}")
-
-    create_tarfile("data/features.tar.gz", "data/features")
-    delete_features()
+    im1_data = load_images(image_type="before")
+    
+    im1_features = extract_features(im1_data, args.batch_size)
+    print("im1_features shape:", im1_features.shape)
+    save_features(im1_features, "im1")
+    del im1_features
+    im2_data = load_images(image_type="after")
+    im2_features = extract_features(im2_data, args.batch_size)
+    print("im2_features shape:", im2_features.shape)
+    save_features(im2_features, "im2")
 
 if __name__ == "__main__":
     main()

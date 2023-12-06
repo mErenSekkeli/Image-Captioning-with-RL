@@ -30,6 +30,23 @@ def load_image_filenames(json_file, start_index, end_index):
 
     return filenames
 
+def load_images(image_type = "before"):
+
+    if image_type == "before":
+        data_folder = "data/im1"
+    elif image_type == "after":
+        data_folder = "data/im2"
+
+    images = []
+    for filename in os.listdir(data_folder):
+        img = cv2.imread(os.path.join(data_folder, filename))
+        if img is not None:
+            images.append(img)
+        else:
+            print(f"Belirtilen dosya bulunamadı: {filename}")
+
+    return images
+
 def image_load(file_name="00003"):
     # Dosyanın bulunduğu klasör yolu
     data_folder = "data"  # Verilerin bulunduğu klasörün adını güncelleyin
