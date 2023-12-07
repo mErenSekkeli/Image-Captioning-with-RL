@@ -3,6 +3,7 @@ import os
 import cv2
 import tarfile
 import torch
+import numpy as np
 
 def load_json_data(json_file, start_index, end_index):
 
@@ -83,18 +84,9 @@ def image_load(file_name="00003"):
     return [im1_parts, im2_parts]
 
 def load_extracted_features(file_name):
-    # tar.gz dosyasını çıkartılmadıysa çıkart
-    if not os.path.exists("data/features"):
-        tar = tarfile.open("data/features.tar.gz")
-        tar.extractall("data")
-        tar.close()
-    # Özellikleri yükle
-    if os.path.exists(os.path.join("data/features", f"{file_name}.pt")):
-        features = torch.load(os.path.join("data/features", f"{file_name}.pt"))
-    else:
-        raise Exception("Feature Folder Doesn't Exist")
+    # load the npy file and return the features
+    features = np.load(f"data/features/{file_name}.npy")
     return features
-
 
 
 

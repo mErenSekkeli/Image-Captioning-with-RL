@@ -15,7 +15,9 @@ def extract_features(image_array, batch_size):
     # Load the pre-trained ResNet101 model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = models.resnet101(pretrained=True).to(device)
-    model.eval()
+    # Remove the last fully-connected layer
+    modules = torch.nn.Sequential(*list(model.children())[:-1])
+    model = modules.to(device)
 
     # Define transformations
     preprocess = transforms.Compose([
