@@ -1,4 +1,4 @@
-from load_data import image_load, load_json_data, load_images
+from load_data import load_images
 import torch
 import torchvision.transforms as transforms
 import torchvision.models as models
