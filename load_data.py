@@ -31,7 +31,7 @@ def load_image_filenames(json_file, start_index, end_index):
 
     return filenames
 
-def load_images(image_type = "before"):
+def load_images(image_type = "before", numpy=False):
 
     if image_type == "before":
         data_folder = "data/im1"
@@ -45,8 +45,26 @@ def load_images(image_type = "before"):
             images.append(img)
         else:
             print(f"Belirtilen dosya bulunamadı: {filename}")
+    
+    if numpy:
+        return np.array(images)
+    else:
+        return images
+    
+def load_sentences(json_file, start_index, end_index):
+    data = load_json_data(json_file, start_index, end_index)
+    sentences = []
 
-    return images
+    for group in data:
+        for item in group:
+            sentence1 = item["sentence1"]
+            sentence2 = item["sentence2"]
+            sentence3 = item["sentence3"]
+
+            sentences.append(sentence1)
+            sentences.append(sentence2)
+            sentences.append(sentence3)            
+    return np.array(sentences)
 
 def image_load(file_name="00003"):
     # Dosyanın bulunduğu klasör yolu
@@ -89,6 +107,7 @@ def load_extracted_features(file_name):
     return features
 
 
+load_sentences("data/result.json", 1000, 1519)
 
 # Test
 """if __name__ == "__main__":
