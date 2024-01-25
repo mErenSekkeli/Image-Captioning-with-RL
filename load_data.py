@@ -1,6 +1,7 @@
 import json
 import os
 import cv2
+from PIL import Image
 import tarfile
 import torch
 import numpy as np
